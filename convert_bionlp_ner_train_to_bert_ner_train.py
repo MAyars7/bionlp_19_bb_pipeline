@@ -106,6 +106,9 @@ def convert_bionlp_abstract_to_bert_train_format(passage_text, ent_lines, senten
         start = int(start)
         end = int(end)
 
+        # Abbreviated bacteria names have tokens separated by u'\xa0'
+        ent_line = ent_line.replace(u'\xa0', ' ')
+
         ent_tokens = ent_line.split('\t')[2].split(' ')
 
         #first token of entity
@@ -172,8 +175,8 @@ def generate_article_train_lines(article_text, bionlp_lines, nlp):
 
     ent_lines = extract_ent_lines(bionlp_lines)
     sentence_break_indices = get_sentence_break_indices(article_text, nlp)
+    article_text = article_text.replace(u'\xa0', ' ')
     article_train_lines = convert_bionlp_abstract_to_bert_train_format(article_text, ent_lines, sentence_break_indices)
-
     return article_train_lines
 
 if __name__ == "__main__":
@@ -194,43 +197,45 @@ if __name__ == "__main__":
     bionlp_train_files = glob.glob('%s*a1' % args.bionlp_train_dir)
     text_files = glob.glob('%s*txt' % args.bionlp_train_dir)
 
-    pm_abstr_pattern = re.compile(r'BB-norm\-\w+.a1')
-    pm_passage_a1_pattern = re.compile(r'BB-norm-F\-\w+\-\w{3}.a1')
-    pm_passage_txt_pattern = re.compile(r'BB-norm-F\-\w+\-\w{3}.txt')
+    pm_abstr_a1_pattern = re.compile(r'BB-norm\+ner\-\w+.a1')
+    pm_abstr_a2_pattern = re.compile(r'BB-norm\+ner\-\w+.a2')
 
-    abstr_files = list(filter(pm_abstr_pattern.search, bionlp_train_files))
-    passage_a1_files = sorted(list(filter(pm_passage_a1_pattern.search, bionlp_train_files)))
+    pm_passage_a1_pattern = re.compile(r'BB-norm\+ner-F\-\w+\-\w{3}.a1')
+    pm_passage_a2_pattern = re.compile(r'BB-norm\+ner-F\-\w+\-\w{3}.a2')
+    pm_passage_txt_pattern = re.compile(r'BB-norm\+ner-F\-\w+\-\w{3}.txt')
+
+    abstr_txt_files = sorted(list(filter(pm_abstr_a1_pattern.search, bionlp_train_files)))
+    abstr_ann_files = sorted(list(filter(pm_abstr_a2_pattern.search, bionlp_train_files)))
+
     passage_txt_files = sorted(list(filter(pm_passage_txt_pattern.search, text_files)))
+    passage_ann_files = sorted(list(filter(pm_passage_a2_pattern.search, bionlp_train_files)))
 
     bert_train_lines = []
-    bert_train_lines_2 = []
 
     usable_files = 0
     unusable_files = []
 
-    # Title/abstract files, Format 1
-    for bionlp_train_file in abstr_files:
+    # Title/abstract files
+    abstr_file_tuples = list(zip(sorted(abstr_txt_files), sorted(abstr_ann_files)))
 
-        with open(bionlp_train_file) as f:
+    for abstr_file_tuple in abstr_file_tuples:
+        txt_file, ann_file = abstr_file_tuple
+
+        with open(ann_file) as f:
             bionlp_lines = f.readlines()
 
-        if len(bionlp_lines) > 1:
-            usable_files += 1
+        with open(txt_file) as f:
+            abstr_text = ' '.join([i.split('\t')[2].strip() for i in f.readlines()])
 
-            merged_title_abstract = extract_and_merge_title_and_abstract(bionlp_lines)
-            bert_train_lines += generate_article_train_lines(merged_title_abstract, bionlp_lines, nlp)
+        bert_train_lines += generate_article_train_lines(abstr_text, bionlp_lines, nlp)
 
-        else:
-            unusable_files.append(bionlp_train_file)
-
-    # Passage files, Format 2
-    passage_file_tuples = list(zip(sorted(passage_a1_files), sorted(passage_txt_files)))
+    # Select passage files
+    passage_file_tuples = list(zip(sorted(passage_txt_files), sorted(passage_ann_files)))
 
     for passage_file_tuple in passage_file_tuples:
+        txt_file, ann_file = passage_file_tuple
 
-        a1_file, txt_file = passage_file_tuple
-
-        with open(a1_file) as f:
+        with open(ann_file) as f:
             bionlp_lines = f.readlines()
 
         with open(txt_file) as f:
