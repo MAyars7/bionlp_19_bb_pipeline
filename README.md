@@ -30,3 +30,7 @@ Scripts to generate entity lists:
 Scripts to obtain and annotate biomedical texts: 
 ---
 -easy_pubmed_batch_downloads.R
+
+# BERT
+
+A separate effort to fine-tune and test domain-specific BERT models (Biobert, NCBI_Bluebert) on the training data provided by BioNLP.  These are Colab notebooks to make use of the free GPUs.
