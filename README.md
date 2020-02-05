@@ -26,7 +26,7 @@ Scripts to generate entity lists:
 -generate_bacteria_taxid_dict.py (bacteria) \
 -extract_obo_category_nodes.py (habitat, phenotype) \
 
-\
+
 Scripts to obtain and annotate biomedical texts: 
 ---
 -easy_pubmed_batch_downloads.R
